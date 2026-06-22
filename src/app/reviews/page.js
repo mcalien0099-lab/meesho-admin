@@ -18,7 +18,7 @@ export default function ReviewsPage() {
   const [formData, setFormData] = useState({
     productId: '',
     productName: '',
-    userName: '',
+    name: '',
     rating: 5,
     comment: ''
   });
@@ -56,12 +56,12 @@ export default function ReviewsPage() {
       setFormData({
         productId: review.productId || '',
         productName: review.productName || '',
-        userName: review.userName || '',
+        name: review.name || review.userName || '',
         rating: review.rating || 5,
         comment: review.comment || ''
       });
     } else {
-      setFormData({ productId: '', productName: '', userName: '', rating: 5, comment: '' });
+      setFormData({ productId: '', productName: '', name: '', rating: 5, comment: '' });
     }
     setIsModalOpen(true);
   };
@@ -150,7 +150,7 @@ export default function ReviewsPage() {
               <tbody>
                 {reviews.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((review) => (
                   <tr key={review._id} className="border-b border-border/50 last:border-0 hover:bg-background/50 transition-colors">
-                    <td className="p-4 font-medium text-foreground">{review.name || 'Anonymous'}</td>
+                    <td className="p-4 text-foreground font-medium">{review.name || review.userName || 'Anonymous'}</td>
                     <td className="p-4 text-primary font-medium flex items-center gap-1 mt-2.5">
                       {review.rating} <Star size={14} className="fill-current" />
                     </td>
@@ -218,7 +218,7 @@ export default function ReviewsPage() {
                   
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Reviewer Name</label>
-                    <input type="text" value={formData.userName} onChange={e => setFormData({...formData, userName: e.target.value})} className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground" placeholder="John Doe" />
+                    <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground" placeholder="John Doe" />
                   </div>
                   
                   <div className="space-y-2">

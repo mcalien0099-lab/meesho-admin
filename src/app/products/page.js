@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, X, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Search, Filter, X, Edit2, Trash2, Image as ImageIcon, Upload, Pin } from 'lucide-react';
 import { productService } from '@/services/productService';
 
 export default function ProductsPage() {
@@ -11,6 +11,8 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef(null);
   const itemsPerPage = 10;
   
   // Form States
@@ -41,6 +43,27 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsImporting(true);
+      setError('');
+      const res = await productService.importProducts(file);
+      alert(res.message || 'Products imported successfully');
+      fetchProducts();
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to import products');
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleOpenModal = (product = null) => {
     if (product) {
@@ -102,17 +125,43 @@ export default function ProductsPage() {
     }
   };
 
+  const handlePinToggle = async (product) => {
+    try {
+      await productService.updateProduct(product._id || product.id, { isPinned: !product.isPinned });
+      fetchProducts();
+    } catch (err) {
+      alert('Failed to update pin status');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-foreground">Products Management</h1>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm"
-        >
-          <Plus size={20} />
-          Add Product
-        </button>
+        <div className="flex items-center gap-3">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, .sql"
+            onChange={handleFileUpload} 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="flex items-center gap-2 bg-secondary text-secondary-foreground border border-border px-4 py-2 rounded-lg font-medium hover:bg-secondary/80 transition-colors shadow-sm disabled:opacity-50"
+          >
+            <Upload size={20} />
+            {isImporting ? 'Importing...' : 'Import'}
+          </button>
+          <button 
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Plus size={20} />
+            Add Product
+          </button>
+        </div>
       </div>
 
       {error && <div className="text-red-500 text-sm bg-red-500/10 p-3 rounded-lg">{error}</div>}
@@ -168,10 +217,13 @@ export default function ProductsPage() {
                     </td>
                     <td className="p-4 text-foreground/70">⭐ {product.rating || 0}</td>
                     <td className="p-4 text-right space-x-3">
-                      <button onClick={() => handleOpenModal(product)} className="text-blue-500 hover:text-blue-600 transition-colors">
+                      <button onClick={() => handlePinToggle(product)} className={`${product.isPinned ? 'text-green-500 hover:text-green-600' : 'text-foreground/40 hover:text-foreground/70'} transition-colors`} title={product.isPinned ? "Unpin product" : "Pin product"}>
+                        <Pin size={18} fill={product.isPinned ? "currentColor" : "none"} />
+                      </button>
+                      <button onClick={() => handleOpenModal(product)} className="text-blue-500 hover:text-blue-600 transition-colors" title="Edit">
                         <Edit2 size={18} />
                       </button>
-                      <button onClick={() => handleDelete(product._id || product.id)} className="text-red-500 hover:text-red-600 transition-colors">
+                      <button onClick={() => handleDelete(product._id || product.id)} className="text-red-500 hover:text-red-600 transition-colors" title="Delete">
                         <Trash2 size={18} />
                       </button>
                     </td>

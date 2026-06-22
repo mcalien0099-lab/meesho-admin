@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meesho-backend-vert.vercel.app/api'; // Base URL for API
+const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000/api' : 'https://meesho-backend-vert.vercel.app/api'); // Base URL for API
 
 const api = axios.create({
   baseURL: API_URL,

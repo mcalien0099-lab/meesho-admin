@@ -7,8 +7,7 @@ export const settingService = {
   },
   
   updateSettings: async (data) => {
-    // The backend uses PUT or POST for settings update. Usually it's POST to /admin/settings if it updates the global settings
-    const response = await api.post('/admin/settings', data);
+    const response = await api.put('/admin/settings', data);
     return response.data;
   }
 };
