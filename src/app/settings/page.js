@@ -15,7 +15,7 @@ export default function SettingsPage() {
     logoName: 'meesho', logoUrl: '', primaryColor: '#9f2089', accentColor: '#f43397',
     cartBannerUrl: '', cartBannerLink: '',
     upiGateway: 'paytm', upiId: '', razorpayUpiId: '', razorpayTr: '',
-    showPhonePe: true, showGPay: true, showPaytm: true, showAmazonPay: true, showBHIM: true,
+    showPhonePe: true, showGPay: true, showPaytm: true, showAmazonPay: true, showBHIM: true, showWhatsApp: true, showCOD: true,
     phonepeOfferText: '', phonepeDiscountAmount: 0,
     gpayOfferText: '', gpayDiscountAmount: 0,
     paytmOfferText: '', paytmDiscountAmount: 0,
@@ -191,7 +191,9 @@ export default function SettingsPage() {
                   { id: 'showGPay', label: 'Google Pay (GPay)' },
                   { id: 'showPaytm', label: 'Paytm' },
                   { id: 'showAmazonPay', label: 'Amazon Pay' },
-                  { id: 'showBHIM', label: 'BHIM UPI' }
+                  { id: 'showBHIM', label: 'BHIM UPI' },
+                  { id: 'showWhatsApp', label: 'WhatsApp Pay' },
+                  { id: 'showCOD', label: 'Cash on Delivery (COD)' }
                 ].map((app) => (
                   <div key={app.id} className="flex items-center justify-between p-4 bg-background border border-border rounded-lg">
                     <span className="text-sm font-medium text-foreground">{app.label}</span>
