@@ -22,6 +22,9 @@ export default function SettingsPage() {
     amazonpayOfferText: '', amazonpayDiscountAmount: 0,
     bhimOfferText: '', bhimDiscountAmount: 0,
     offers: [],
+    codAdvanceAmount: 0,
+    metaPixelIds: [],
+    googleAnalyticsIds: [],
   });
 
   const fetchSettings = async () => {
@@ -29,7 +32,27 @@ export default function SettingsPage() {
       setLoading(true);
       const res = await settingService.getSettings();
       if (res.data || res.settings) {
-        setSettings({ ...settings, ...(res.data || res.settings) });
+        const fetchedData = res.data || res.settings;
+        
+          // Handle legacy COD_ADVANCE in offers if present, but also prefer the direct field if it exists
+        let codAdvanceAmount = fetchedData.codAdvanceAmount || 0;
+        let metaPixelIds = [];
+        let googleAnalyticsIds = [];
+        
+        if (fetchedData.offers && Array.isArray(fetchedData.offers)) {
+          const advanceOffer = fetchedData.offers.find(o => o && o.startsWith && o.startsWith('COD_ADVANCE:'));
+          if (advanceOffer && codAdvanceAmount === 0) {
+            codAdvanceAmount = Number(advanceOffer.split(':')[1]) || 0;
+          }
+          
+          metaPixelIds = fetchedData.offers.filter(o => o && o.startsWith && o.startsWith('PIXEL_META:')).map(o => o.split(':')[1]);
+          googleAnalyticsIds = fetchedData.offers.filter(o => o && o.startsWith && o.startsWith('PIXEL_GA:')).map(o => o.split(':')[1]);
+          
+          // Remove the legacy string from offers so it doesn't show up in the UI
+          fetchedData.offers = fetchedData.offers.filter(o => !(o && o.startsWith && (o.startsWith('COD_ADVANCE:') || o.startsWith('PIXEL_'))));
+        }
+        
+        setSettings({ ...settings, ...fetchedData, codAdvanceAmount, metaPixelIds, googleAnalyticsIds });
       }
     } catch (err) {
       console.error(err);
@@ -48,7 +71,33 @@ export default function SettingsPage() {
       setSaving(true);
       setError('');
       setSuccess('');
-      await settingService.updateSettings(settings);
+      
+      const dataToSave = { ...settings };
+      // Make sure we strip any legacy COD_ADVANCE or PIXEL from offers before saving
+      dataToSave.offers = [...(dataToSave.offers || []).filter(o => o && !(o.startsWith('COD_ADVANCE:') || o.startsWith('PIXEL_')))];
+      
+      if (dataToSave.codAdvanceAmount > 0) {
+        dataToSave.offers.push(`COD_ADVANCE:${dataToSave.codAdvanceAmount}`);
+      }
+      if (dataToSave.metaPixelIds && dataToSave.metaPixelIds.length > 0) {
+        dataToSave.metaPixelIds.forEach(id => {
+          if (id && id.trim()) dataToSave.offers.push(`PIXEL_META:${id.trim()}`);
+        });
+      }
+      if (dataToSave.googleAnalyticsIds && dataToSave.googleAnalyticsIds.length > 0) {
+        dataToSave.googleAnalyticsIds.forEach(id => {
+          if (id && id.trim()) dataToSave.offers.push(`PIXEL_GA:${id.trim()}`);
+        });
+      }
+      
+      // Remove local fields from the payload so backend doesn't reject it
+      delete dataToSave.codAdvanceAmount;
+      delete dataToSave.metaPixelIds;
+      delete dataToSave.googleAnalyticsIds;
+      delete dataToSave.metaPixelId; // cleanup legacy
+      delete dataToSave.googleAnalyticsId;
+      
+      await settingService.updateSettings(dataToSave);
       setSuccess('Settings saved successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -95,6 +144,7 @@ export default function SettingsPage() {
             { id: 'upi_visibility', label: 'UPI Visibility', icon: Smartphone },
             { id: 'upi_offers', label: 'UPI Offers', icon: ImageIcon },
             { id: 'offers', label: 'Global Offers', icon: Tag },
+            { id: 'tracking', label: 'Tracking Pixels', icon: Smartphone }, // We reuse an icon
           ].map((tab) => (
             <button
               key={tab.id}
@@ -197,12 +247,26 @@ export default function SettingsPage() {
                   { id: 'showWhatsApp', label: 'WhatsApp Pay' },
                   { id: 'showCOD', label: 'Cash on Delivery (COD)' }
                 ].map((app) => (
-                  <div key={app.id} className="flex items-center justify-between p-4 bg-background border border-border rounded-lg">
-                    <span className="text-sm font-medium text-foreground">{app.label}</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" checked={settings[app.id]} onChange={e => handleChange(app.id, e.target.checked)} className="sr-only peer" />
-                      <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
+                  <div key={app.id} className="flex flex-col gap-2 p-4 bg-background border border-border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{app.label}</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked={settings[app.id]} onChange={e => handleChange(app.id, e.target.checked)} className="sr-only peer" />
+                        <div className="w-11 h-6 bg-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                      </label>
+                    </div>
+                    {app.id === 'showCOD' && settings.showCOD && (
+                      <div className="mt-2 pt-2 border-t border-border">
+                        <label className="text-xs font-medium text-foreground/70 block mb-1">COD Advance Amount (₹)</label>
+                        <input 
+                          type="number" 
+                          value={settings.codAdvanceAmount || ''} 
+                          onChange={e => handleChange('codAdvanceAmount', Number(e.target.value))} 
+                          className="w-full bg-card border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground" 
+                          placeholder="Amount to collect online (e.g. 100)" 
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -280,6 +344,107 @@ export default function SettingsPage() {
                   <Plus size={18} />
                   Add Offer
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tracking Tab */}
+          {activeTab === 'tracking' && (
+            <div className="p-6 space-y-6 animate-in fade-in duration-200">
+              <h2 className="text-lg font-bold text-foreground mb-4">Tracking Pixels</h2>
+              <p className="text-sm text-foreground/60 mb-6">Add your tracking pixel IDs here. We will automatically inject the pixel code into your website.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Meta Pixels */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-foreground">Meta Pixel IDs (Facebook)</label>
+                    <button 
+                      onClick={() => handleChange('metaPixelIds', [...(settings.metaPixelIds || []), ''])}
+                      className="flex items-center gap-1 text-primary hover:bg-primary/10 px-2 py-1 rounded-md font-medium transition-colors text-xs"
+                    >
+                      <Plus size={14} /> Add Pixel
+                    </button>
+                  </div>
+                  
+                  {!(settings.metaPixelIds?.length > 0) && (
+                    <p className="text-xs text-foreground/50">No Meta Pixels added yet.</p>
+                  )}
+                  
+                  {(settings.metaPixelIds || []).map((pixel, index) => (
+                    <div key={`meta-${index}`} className="flex items-start gap-2">
+                      <div className="flex-1 space-y-1">
+                        <input 
+                          type="text" 
+                          value={pixel} 
+                          onChange={(e) => {
+                            const newPixels = [...(settings.metaPixelIds || [])];
+                            newPixels[index] = e.target.value;
+                            handleChange('metaPixelIds', newPixels);
+                          }} 
+                          className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground" 
+                          placeholder="e.g. 123456789012345" 
+                        />
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const newPixels = (settings.metaPixelIds || []).filter((_, i) => i !== index);
+                          handleChange('metaPixelIds', newPixels);
+                        }}
+                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors mt-0.5"
+                        title="Remove Pixel"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-foreground/50">Only enter the numeric ID, not the whole script.</p>
+                </div>
+                
+                {/* Google Analytics / Pixels */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-foreground">Google Analytics / Pixel IDs</label>
+                    <button 
+                      onClick={() => handleChange('googleAnalyticsIds', [...(settings.googleAnalyticsIds || []), ''])}
+                      className="flex items-center gap-1 text-primary hover:bg-primary/10 px-2 py-1 rounded-md font-medium transition-colors text-xs"
+                    >
+                      <Plus size={14} /> Add Pixel
+                    </button>
+                  </div>
+                  
+                  {!(settings.googleAnalyticsIds?.length > 0) && (
+                    <p className="text-xs text-foreground/50">No Google Pixels added yet.</p>
+                  )}
+                  
+                  {(settings.googleAnalyticsIds || []).map((pixel, index) => (
+                    <div key={`ga-${index}`} className="flex items-start gap-2">
+                      <div className="flex-1 space-y-1">
+                        <input 
+                          type="text" 
+                          value={pixel} 
+                          onChange={(e) => {
+                            const newPixels = [...(settings.googleAnalyticsIds || [])];
+                            newPixels[index] = e.target.value;
+                            handleChange('googleAnalyticsIds', newPixels);
+                          }} 
+                          className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground" 
+                          placeholder="e.g. G-XXXXXXXXXX or AW-XXXXXXXX" 
+                        />
+                      </div>
+                      <button 
+                        onClick={() => {
+                          const newPixels = (settings.googleAnalyticsIds || []).filter((_, i) => i !== index);
+                          handleChange('googleAnalyticsIds', newPixels);
+                        }}
+                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors mt-0.5"
+                        title="Remove Pixel"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
