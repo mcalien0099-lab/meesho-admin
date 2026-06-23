@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Save, Image as ImageIcon, CreditCard, Smartphone, LayoutTemplate } from 'lucide-react';
+import { Save, Image as ImageIcon, CreditCard, Smartphone, LayoutTemplate, Tag, Plus, Trash2 } from 'lucide-react';
 import { settingService } from '@/services/settingService';
 
 export default function SettingsPage() {
@@ -21,6 +21,7 @@ export default function SettingsPage() {
     paytmOfferText: '', paytmDiscountAmount: 0,
     amazonpayOfferText: '', amazonpayDiscountAmount: 0,
     bhimOfferText: '', bhimDiscountAmount: 0,
+    offers: [],
   });
 
   const fetchSettings = async () => {
@@ -93,6 +94,7 @@ export default function SettingsPage() {
             { id: 'gateway', label: 'Payment Gateways', icon: CreditCard },
             { id: 'upi_visibility', label: 'UPI Visibility', icon: Smartphone },
             { id: 'upi_offers', label: 'UPI Offers', icon: ImageIcon },
+            { id: 'offers', label: 'Global Offers', icon: Tag },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -233,6 +235,51 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Offers Tab */}
+          {activeTab === 'offers' && (
+            <div className="p-6 space-y-6 animate-in fade-in duration-200">
+              <h2 className="text-lg font-bold text-foreground mb-4">Global Offers</h2>
+              <p className="text-sm text-foreground/60 mb-6">Add special offers like b1g1, b2g1, etc. that will be displayed across the app.</p>
+              
+              <div className="space-y-4 max-w-md">
+                {(settings.offers || []).map((offer, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input 
+                      type="text" 
+                      value={offer} 
+                      onChange={(e) => {
+                        const newOffers = [...(settings.offers || [])];
+                        newOffers[index] = e.target.value;
+                        handleChange('offers', newOffers);
+                      }} 
+                      className="flex-1 bg-background border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary text-foreground" 
+                      placeholder="e.g. b1g1" 
+                    />
+                    <button 
+                      onClick={() => {
+                        const newOffers = (settings.offers || []).filter((_, i) => i !== index);
+                        handleChange('offers', newOffers);
+                      }}
+                      className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Remove Offer"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                ))}
+                <button 
+                  onClick={() => {
+                    handleChange('offers', [...(settings.offers || []), '']);
+                  }}
+                  className="flex items-center gap-2 text-primary hover:bg-primary/10 px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+                >
+                  <Plus size={18} />
+                  Add Offer
+                </button>
               </div>
             </div>
           )}
